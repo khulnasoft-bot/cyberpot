@@ -48,7 +48,7 @@ export function useAdaptivePolling<T>(
 
     useEffect(() => {
         let mounted = true;
-        let timeoutId: NodeJS.Timeout;
+        let timeoutId: ReturnType<typeof setTimeout>;
 
         const poll = async () => {
             try {
@@ -66,7 +66,6 @@ export function useAdaptivePolling<T>(
             }
 
             if (mounted) {
-                // Use resource mode interval or default
                 const interval = resourceMode.updateInterval || defaultInterval;
                 timeoutId = setTimeout(poll, interval);
             }
@@ -95,7 +94,7 @@ export function useThrottledCallback<T extends (...args: any[]) => void>(
     const { resourceMode } = useResourceMode();
     const [throttledFn] = useState(() => {
         let lastCall = 0;
-        let timeout: NodeJS.Timeout | null = null;
+        let timeout: ReturnType<typeof setTimeout> | null = null;
 
         return function (this: any, ...args: Parameters<T>) {
             const actualDelay = delay || resourceMode.updateInterval || 2000;

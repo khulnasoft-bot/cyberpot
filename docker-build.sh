@@ -9,6 +9,7 @@ usage() {
     echo "  --version       Print the version and exit."
     echo "  -p <prefix>     Set a prefix for Docker image names."
     echo "  --prefix <prefix>  Same as -p."
+    echo "  --platforms <platforms>  Set the platforms for the Docker images (e.g., linux/amd64,linux/arm64)."
     echo "  -h, --help      Display this help message."
     exit 0
 }
@@ -46,6 +47,15 @@ while [[ $# -gt 0 ]]; do
       PREFIX="$2"
       shift 2
       ;;
+    --platforms)
+      if [[ -z "$2" || "$2" == -* ]]; then
+        echo "Option --platforms requires an argument." >&2
+        usage
+        exit 1
+      fi
+      PLATFORMS_ARG="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       ;;
@@ -72,14 +82,25 @@ fi
 
 # Check if buildx is available and setup builder
 if docker buildx version > /dev/null 2>&1; then
-    echo "Docker buildx found. Setting up builder..."
-    # Create a new builder instance or use existing if permitted/available
-    # For CI/CD or local dev, ensure a driver that supports multi-arch (docker-container) is used if needed
-    # falling back to default is often fine for load, but for multi-arch push we need more.
-    # For this script, we assume 'docker buildx build' works.
+    echo "Docker buildx found. Checking builder capabilities..."
+    DRIVER=$(docker buildx inspect | grep Driver | head -n 1 | awk '{print $NF}')
+    if [ -z "$DRIVER" ]; then
+        DRIVER="docker"
+    fi
+    echo "Current builder driver: $DRIVER"
 else
     echo "Docker buildx not found. Please install it for multi-arch builds."
     exit 1
+fi
+
+# Set default platforms if not provided
+if [ -n "$PLATFORMS_ARG" ]; then
+    PLATFORMS="$PLATFORMS_ARG"
+elif [ "$DRIVER" = "docker" ]; then
+    echo "Default docker driver detected. Building for host platform only."
+    PLATFORMS=""
+else
+    PLATFORMS="linux/amd64,linux/arm64"
 fi
 
 # Find all Dockerfiles, excluding some directories
@@ -96,27 +117,13 @@ find docker -name Dockerfile | while read -r dockerfile; do
     image_name="${PREFIX}/$(echo "$relative_path" | tr '/' '-')"
     tag="${image_name}${VERSION_TAG}"
     
-    echo "Building Docker image in $dir with tag $tag for linux/amd64,linux/arm64"
-    
-    # Use buildx to build for both platforms. 
-    # --load loads it into local docker daemon (only works for single arch usually, unless valid manifest)
-    # properly, for multi-arch we usually push. 
-    # Here we will try to just build. If pushing is needed, modifications are required.
-    # For local development compatibility, we might default to current arch OR ask user.
-    # We will build for both but NOT load to avoid 'docker image ls' confusion unless 'push' is specified?
-    # For now, let's keep it simple: Build for the architecture of the machine running the script primarily,
-    # OR if we want to support Pi we explicitly add platforms.
-    
-    # NOTE: 'docker buildx build --load' does not support multi-arch typically.
-    # To support local usage on Mac (current user) and Pi, we can build for current arch by default,
-    # or expose a flag. 
-    
-    # Update: As per plan, we enable multi-arch.
-    # We will build and store in cache (no push, no load) to verify build success,
-    # OR we can just standard build if no specific flag.
-    # Let's stick to standard build but allow platform flag.
-    
-    (cd "$dir" && docker buildx build --platform linux/amd64,linux/arm64 -t "$tag" .)
+    if [ -n "$PLATFORMS" ]; then
+        echo "Building Docker image in $dir with tag $tag for $PLATFORMS"
+        (cd "$dir" && docker buildx build --platform "$PLATFORMS" -t "$tag" .)
+    else
+        echo "Building Docker image in $dir with tag $tag for host platform"
+        (cd "$dir" && docker buildx build -t "$tag" --load .)
+    fi
 done
 
 echo "All Docker images built successfully."
