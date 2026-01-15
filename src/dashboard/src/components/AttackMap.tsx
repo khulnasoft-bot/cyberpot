@@ -16,11 +16,56 @@ type AttackPoint = {
 };
 
 const AttackMap: React.FC = () => {
-  const [attacks, setAttacks] = useState<AttackPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { resourceMode } = useResourceMode();
-  const { enableAnimations, maxVisibleItems, updateInterval } = useFeatureFlags();
-  const previousAttacksRef = useRef<AttackPoint[]>([]);
+    const [attacks, setAttacks] = useState<AttackPoint[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { resourceMode } = useResourceMode();
+    const { enableAnimations, maxVisibleItems, updateInterval } = useFeatureFlags();
+    const previousAttacksRef = useRef<AttackPoint[]>([]);
+
+    useEffect(() => {
+        let mounted = true;
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const fetchData = async (incremental = false) => {
+            try {
+                const url = incremental && previousAttacksRef.current.length > 0
+                    ? 'http://localhost:3000/api/geodata?incremental=true'
+                    : 'http://localhost:3000/api/geodata';
+
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Fetch error: ${res.statusText}`);
+
+                const data = await res.json();
+
+                if (!mounted) return;
+
+                if (data.incremental && data.diff) {
+                    setAttacks(prev => {
+                        let updated = [...prev];
+
+                        if (Array.isArray(data.diff.removed) && data.diff.removed.length > 0) {
+                            const removedIds = new Set(data.diff.removed.map((a: AttackPoint) => a.id));
+                            updated = updated.filter(a => !removedIds.has(a.id));
+                        }
+
+                        if (Array.isArray(data.diff.added) && data.diff.added.length > 0) {
+                            updated = [...updated, ...data.diff.added];
+                        }
+
+                        if (Array.isArray(data.diff.updated) && data.diff.updated.length > 0) {
+                            const updatedMap = new Map<number, AttackPoint>(data.diff.updated.map((a: AttackPoint) => [a.id, a]));
+                            updated = updated.map(a => updatedMap.get(a.id) ?? a);
+                        }
+
+                        previousAttacksRef.current = updated;
+                        return updated;
+                    });
+                } else if (Array.isArray(data)) {
+                    setAttacks(data);
+                    previousAttacksRef.current = data;
+                } else {
+                    console.warn("Unexpected data format:", data);
+                }
 
   useEffect(() => {
     let mounted = true;
@@ -43,9 +88,8 @@ const AttackMap: React.FC = () => {
           setAttacks(prev => {
             let updated = [...prev];
 
-            if (Array.isArray(data.diff.removed) && data.diff.removed.length > 0) {
-              const removedIds = new Set(data.diff.removed.map((a: AttackPoint) => a.id));
-              updated = updated.filter(a => !removedIds.has(a.id));
+            if (mounted) {
+                timeoutId = setTimeout(() => fetchData(true), updateInterval);
             }
 
             if (Array.isArray(data.diff.added) && data.diff.added.length > 0) {
@@ -158,22 +202,102 @@ const AttackMap: React.FC = () => {
             </div>
           </div>
         </div>
+    );
 
-        {/* Analytics & Countermeasures Section */}
-        <div className="space-y-6">
-          <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700/50">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Node Analytics</h4>
-            <div className="space-y-4">
-              {attacks.slice(0, Math.min(4, maxVisibleItems)).map(attack => (
-                <div key={attack.id} className="p-3 bg-slate-800/50 rounded-xl border border-slate-700/30 flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-500 uppercase">{attack.country}</div>
-                    <div className="text-sm font-bold text-white">{attack.city}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-bold text-red-400 uppercase">{attack.type}</div>
-                    <div className="text-[8px] text-slate-500 italic">Target: Hive-01</div>
-                  </div>
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Map Section */}
+                <div className="lg:col-span-3 bg-[#1e293b] rounded-2xl border border-slate-700/50 overflow-hidden shadow-2xl relative">
+                    <div className="absolute top-6 left-6 z-10 space-y-2">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                            Tactical Threat Map
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active Intercept Projection</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-900/50 flex items-center justify-center">
+                        <ComposableMap projection="geoEqualEarth" width={800} height={450}>
+                            <Geographies geography={geoUrl}>
+                                {({ geographies }: { geographies: any[] }) =>
+                                    geographies.map((geo: any) => (
+                                        <Geography
+                                            key={geo.rsmKey}
+                                            geography={geo}
+                                            fill="#0f172a"
+                                            stroke="#334155"
+                                            strokeWidth={0.5}
+                                            style={{
+                                                default: { outline: "none" },
+                                                hover: { fill: "#1e293b", outline: "none" },
+                                                pressed: { outline: "none" },
+                                            }}
+                                        />
+                                    ))
+                                }
+                            </Geographies>
+                            {attacks.slice(0, maxVisibleItems).map(point => (
+                                <Marker key={point.id} coordinates={[point.lng, point.lat]}>
+                                    <circle r={4} fill={point.color} className={enableAnimations ? "animate-pulse" : undefined} />
+                                    {enableAnimations && (
+                                        <circle r={10} fill={point.color} fillOpacity={0.2} stroke={point.color} strokeWidth={1} className="animate-ping" />
+                                    )}
+                                    <text
+                                        textAnchor="middle"
+                                        y={-15}
+                                        style={{ fontFamily: "monospace", fill: "#94a3b8", fontSize: 8, fontWeight: "bold" }}
+                                    >
+                                        {point.city}
+                                    </text>
+                                </Marker>
+                            ))}
+                        </ComposableMap>
+                    </div>
+
+                    <div className="absolute bottom-6 right-6 flex items-center gap-4 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-lg border border-slate-700">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-[#f87171] rounded-full"></span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">High Threat</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-[#6366f1] rounded-full"></span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Medium Threat</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Analytics & Countermeasures Section */}
+                <div className="space-y-6">
+                    <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700/50">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Node Analytics</h4>
+                        <div className="space-y-4">
+                            {attacks.slice(0, Math.min(4, maxVisibleItems)).map(attack => (
+                                <div key={attack.id} className="p-3 bg-slate-800/50 rounded-xl border border-slate-700/30 flex items-center justify-between">
+                                    <div>
+                                        <div className="text-[10px] font-bold text-slate-500 uppercase">{attack.country}</div>
+                                        <div className="text-sm font-bold text-white">{attack.city}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold text-red-400 uppercase">{attack.type}</div>
+                                        <div className="text-[8px] text-slate-500 italic">Target: Hive-01</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-indigo-500/10 p-6 rounded-2xl border border-indigo-500/20">
+                        <ShieldAlert className="w-6 h-6 text-indigo-400 mb-2" />
+                        <h4 className="text-sm font-bold text-white mb-2">Automated Countermeasures</h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed uppercase font-medium">
+                            BGP Blackhole enabled for detected adversarial infrastructure in RU/CN sectors.
+                        </p>
+                        <div className="mt-3 pt-3 border-t border-indigo-500/20">
+                            <div className="text-[8px] text-slate-500 uppercase font-bold">Resource Mode: {resourceMode.mode}</div>
+                            <div className="text-[8px] text-slate-500">Update Interval: {updateInterval}ms</div>
+                        </div>
+                    </div>
                 </div>
               ))}
             </div>

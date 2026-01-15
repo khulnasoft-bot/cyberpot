@@ -1,0 +1,42 @@
+services:
+  elasticsearch:
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    mem_limit: 1g
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  logstash:
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    mem_limit: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  kibana:
+    mem_limit: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # Map Redis optimization
+  map_redis:
+    command: [ "redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru" ]
+    mem_limit: 256m
+
+  # Disable heavy NSM components by default in dev if not needed
+  suricata:
+    profiles: [ "nsm" ]
+
+  fatt:
+    profiles: [ "nsm" ]
+
+  p0f:
+    profiles: [ "nsm" ]

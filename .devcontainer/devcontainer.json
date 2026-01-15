@@ -1,0 +1,38 @@
+{
+	"name": "CyberPot Dev (Security Optimized)",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-vscode.cpptools",
+				"ms-azuretools.vscode-docker",
+				"esbenp.prettier-vscode",
+				"dbaeumer.vscode-eslint"
+			],
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"editor.formatOnSave": true
+			}
+		}
+	},
+	"remoteUser": "cybernode",
+	"mounts": [
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+	],
+	"containerEnv": {
+		"CYBERPOT_RESOURCE_MODE": "LOW",
+		"CYBERPOT_ES_HEAP_SIZE": "-Xms512m -Xmx512m",
+		"CYBERPOT_LS_HEAP_SIZE": "-Xms256m -Xmx256m"
+	},
+	"postCreateCommand": "bash .devcontainer/setup-dev.sh",
+	"runArgs": [
+		"--security-opt", "label=disable",
+		"--security-opt", "no-new-privileges:true",
+		"--memory", "4g",
+		"--cpus", "2"
+	]
+}
