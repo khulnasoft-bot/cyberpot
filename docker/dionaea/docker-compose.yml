@@ -31,15 +31,14 @@ services:
 #     - "5060:5060/udp"
 #     - "5061:5061"
      - "27017:27017"
-    image: "khulnasoft/dionaea:24.04"
+    image: "dtagdevsec/dionaea:24.04"
     read_only: true
     volumes:
-     - $HOME/cyberpot/data/dionaea/roots/ftp:/opt/dionaea/var/dionaea/roots/ftp
-     - $HOME/cyberpot/data/dionaea/roots/tftp:/opt/dionaea/var/dionaea/roots/tftp
-     - $HOME/cyberpot/data/dionaea/roots/www:/opt/dionaea/var/dionaea/roots/www
-     - $HOME/cyberpot/data/dionaea/roots/upnp:/opt/dionaea/var/dionaea/roots/upnp
-     - $HOME/cyberpot/data/dionaea:/opt/dionaea/var/dionaea
-     - $HOME/cyberpot/data/dionaea/binaries:/opt/dionaea/var/dionaea/binaries
-     - $HOME/cyberpot/data/dionaea/log:/opt/dionaea/var/log
-     - $HOME/cyberpot/data/dionaea/rtp:/opt/dionaea/var/dionaea/rtp
-
+     - $HOME/tpotce/data/dionaea/roots/ftp:/opt/dionaea/var/dionaea/roots/ftp
+     - $HOME/tpotce/data/dionaea/roots/tftp:/opt/dionaea/var/dionaea/roots/tftp
+     - $HOME/tpotce/data/dionaea/roots/www:/opt/dionaea/var/dionaea/roots/www
+     - $HOME/tpotce/data/dionaea/roots/upnp:/opt/dionaea/var/dionaea/roots/upnp
+     - $HOME/tpotce/data/dionaea:/opt/dionaea/var/dionaea
+     - $HOME/tpotce/data/dionaea/binaries:/opt/dionaea/var/dionaea/binaries
+     - $HOME/tpotce/data/dionaea/log:/opt/dionaea/var/log
+     - $HOME/tpotce/data/dionaea/rtp:/opt/dionaea/var/dionaea/rtp

@@ -33,8 +33,8 @@ RUN apk --no-cache -U upgrade && \
 			xmljson && \
 #
 # Setup ewsposter
-#    git clone https://github.com/khulnasoft/ewsposter -b V1.30.0 /opt/ewsposter && \
-	git clone https://github.com/khulnasoft/ewsposter /opt/ewsposter && \
+#    git clone https://github.com/telekom-security/ewsposter -b V1.30.0 /opt/ewsposter && \
+	git clone https://github.com/telekom-security/ewsposter /opt/ewsposter && \
     mkdir -p /opt/ewsposter/spool /opt/ewsposter/log && \
 #
 # Setup user and groups

@@ -13,9 +13,9 @@ RUN ARCH=$(arch) && \
 # Setup apt
     apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install wget -y && \
-    wget http://ftp.us.debian.org/debian/pool/main/libe/libemu/libemu2_0.2.0+git20120122-1.2+b1_$ARCH.deb \
-         http://ftp.us.debian.org/debian/pool/main/libe/libemu/libemu-dev_0.2.0+git20120122-1.2+b1_$ARCH.deb && \
+    apt-get install wget ca-certificates -y && \
+    wget https://snapshot.debian.org/archive/debian/20170317T220000Z/pool/main/libe/libemu/libemu2_0.2.0+git20120122-1.2+b1_$ARCH.deb \
+         https://snapshot.debian.org/archive/debian/20170317T220000Z/pool/main/libe/libemu/libemu-dev_0.2.0+git20120122-1.2+b1_$ARCH.deb && \
     apt-get install ./libemu2_0.2.0+git20120122-1.2+b1_$ARCH.deb \
                 ./libemu-dev_0.2.0+git20120122-1.2+b1_$ARCH.deb -y && \
     apt-get install -y --no-install-recommends \
@@ -120,7 +120,7 @@ RUN ARCH=$(arch) && \
 # Start dionaea
 STOPSIGNAL SIGINT
 #
-# Dionaea sometimes hangs at 100% CPU usage, if detected container will become unhealthy and restarted by cyberpotinit
+# Dionaea sometimes hangs at 100% CPU usage, if detected container will become unhealthy and restarted by tpotinit
 HEALTHCHECK --interval=5m --timeout=30s --retries=3 CMD python3 /cpu_check.py $(pgrep -of dionaea) 99
 USER dionaea:dionaea
 CMD ["/opt/dionaea/sbin/dionaea", "-u", "dionaea", "-g", "dionaea", "-c", "/opt/dionaea/etc/dionaea/dionaea.cfg"]

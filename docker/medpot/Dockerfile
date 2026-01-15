@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 #
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
@@ -17,6 +17,7 @@ RUN mkdir -p /usr/local/go/src/medpot && \
     cd /usr/local/go/src/medpot && \
     git checkout 75a2e6134cf926c35b6017d62542274434c87388 && \
     go mod init github.com/schmalle/medpot && \
+    go mod edit -replace=github.com/go-ini/ini=gopkg.in/ini.v1@v1.67.0 && \
     go mod tidy && \
     go mod download && \
     cp dist/etc/ews.cfg /etc/ && \

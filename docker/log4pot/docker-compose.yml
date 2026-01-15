@@ -23,5 +23,5 @@ services:
     image: "ghcr.io/khulnasoft/log4pot:24.04.1"
     read_only: true
     volumes:
-     - $HOME/cyberpot/data/log4pot/log:/var/log/log4pot/log
-     - $HOME/cyberpot/data/log4pot/payloads:/var/log/log4pot/payloads
+     - $HOME/tpotce/data/log4pot/log:/var/log/log4pot/log
+     - $HOME/tpotce/data/log4pot/payloads:/var/log/log4pot/payloads
