@@ -297,6 +297,13 @@
           - runc
           - podman-docker
           - podman
+          - moby-engine
+          - moby-cli
+          - moby-buildx
+          - moby-compose
+          - moby-containerd
+          - moby-runc
+          - moby-tini
         state: absent
         update_cache: yes
       when: ansible_distribution in ["AlmaLinux", "Debian", "Fedora", "Raspbian", "RedHat", "Rocky", "Ubuntu"]

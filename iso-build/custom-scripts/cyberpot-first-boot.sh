@@ -15,7 +15,7 @@ echo "tempuser:tempuser" | chpasswd
 adduser tempuser sudo
 
 # Run the installer as the temporary user
-su - tempuser -c "bash /root/cyberpot/install.sh" <<'EOF'
+su - tempuser -c "bash /opt/cyberpot/install.sh" <<'EOF'
 y
 h
 cyberpot

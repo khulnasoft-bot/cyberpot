@@ -58,14 +58,46 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 
+# Function to wait for apt lock
+function wait_for_apt {
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
+        echo "Waiting for other software managers to finish..."
+        sleep 5
+    done
+}
+
 # Check for required tools
-for tool in debootstrap xorriso mksquashfs; do
+REQUIRED_TOOLS="debootstrap xorriso mksquashfs"
+MISSING_TOOLS=""
+
+for tool in $REQUIRED_TOOLS; do
     if ! command_exists "$tool"; then
-        echo "Installing required tool: $tool"
-        apt-get update
-        apt-get install -y --no-install-recommends debootstrap xorriso squashfs-tools
+        MISSING_TOOLS="$MISSING_TOOLS $tool"
     fi
 done
+
+# Also check for isolinux files and the keyring
+if [ ! -f /usr/lib/ISOLINUX/isolinux.bin ] || [ ! -f /usr/lib/syslinux/modules/bios/menu.c32 ]; then
+    MISSING_TOOLS="$MISSING_TOOLS isolinux syslinux-common"
+fi
+
+# Specifically check for debian-archive-keyring
+if [ ! -f /usr/share/keyrings/debian-archive-keyring.gpg ]; then
+    MISSING_TOOLS="$MISSING_TOOLS debian-archive-keyring"
+fi
+
+if [ -n "$MISSING_TOOLS" ]; then
+    echo "Installing missing tools and dependencies: $MISSING_TOOLS"
+    wait_for_apt
+    apt-get update
+    apt-get install -y --no-install-recommends debootstrap xorriso squashfs-tools isolinux syslinux-common debian-archive-keyring psmisc
+fi
+
+# Check for privileged mode (required for mounting in debootstrap/chroot)
+if [ -f /.dockerenv ] && ! mount -t proc proc /proc >/dev/null 2>&1; then
+    echo "Error: This container doesn't seem to have sufficient privileges (missing --privileged or CAP_SYS_ADMIN)."
+    echo "Mounting operations will likely fail."
+fi
 
 # Clean up previous builds
 echo "Cleaning up previous builds..."
@@ -75,9 +107,31 @@ rm -rf "${BUILD_DIR}"
 echo "Creating build directories..."
 mkdir -p "${CHROOT_DIR}" "${ISO_DIR}/isolinux" "${ISO_DIR}/live" "${CUSTOM_SCRIPTS_DIR}"
 
+# Determine keyring
+# On some systems (Ubuntu) it might be in a different spot or debootstrap might need help finding it
+KEYRING_PATHS=(
+    "/usr/share/keyrings/debian-archive-keyring.gpg"
+    "/usr/share/keyrings/ubuntu-archive-keyring.gpg"
+)
+
+KEYRING_ARG=""
+for path in "${KEYRING_PATHS[@]}"; do
+    if [ -f "$path" ]; then
+        echo "Using keyring: $path"
+        KEYRING_ARG="--keyring=$path"
+        break
+    fi
+done
+
+if [ -z "$KEYRING_ARG" ]; then
+    echo "Warning: No Debian/Ubuntu archive keyring found. Debootstrap might fail or warn about signatures."
+    # We could add --no-check-gpg here if we really wanted to force it, but better to try default first
+fi
+
 # Stage 1: Create a minimal Debian system
 echo "Debootstrapping Debian ${DISTRO}..."
-debootstrap --arch amd64 --variant=minbase "${DISTRO}" "${CHROOT_DIR}" "${MIRROR}"
+# Using --no-check-gpg as a last resort if it still fails in certain environments
+debootstrap ${KEYRING_ARG} --arch amd64 --variant=minbase "${DISTRO}" "${CHROOT_DIR}" "${MIRROR}"
 
 # Stage 2: Configure the chroot environment
 echo "Configuring the chroot environment..."
@@ -105,6 +159,9 @@ apt-get update
 # Install kernel, bootloader, and other necessary packages
 apt-get install -y --no-install-recommends \
     linux-image-amd64 \
+    systemd-sysv \
+    live-boot \
+    live-config \
     grub-pc \
     locales \
     squashfs-tools \
@@ -114,7 +171,8 @@ apt-get install -y --no-install-recommends \
     ansible \
     apache2-utils \
     cracklib-runtime \
-    wget
+    wget \
+    zstd
 
 # Configure locales
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
@@ -127,7 +185,9 @@ EOF
 
 # Stage 4: Copy CyberPot repository
 echo "Copying CyberPot repository into the chroot..."
-cp -r "${PROJECT_ROOT}" "${CHROOT_DIR}/root/cyberpot"
+mkdir -p "${CHROOT_DIR}/opt/cyberpot"
+cp -r "${PROJECT_ROOT}/." "${CHROOT_DIR}/opt/cyberpot/"
+chmod -R 755 "${CHROOT_DIR}/opt/cyberpot"
 
 # Stage 5: Configure first-boot script
 echo "Configuring first-boot script..."

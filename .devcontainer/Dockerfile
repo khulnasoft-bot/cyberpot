@@ -21,7 +21,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 FROM python:3.12-slim-bookworm
 
 LABEL maintainer="KhulnaSoft" \
-      org.opencontainers.image.description="Optimized development container for CyberPot"
+    org.opencontainers.image.description="Optimized development container for CyberPot"
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -39,6 +39,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim-tiny \
     wget \
     docker.io \
+    debootstrap \
+    xorriso \
+    squashfs-tools \
+    isolinux \
+    syslinux-common \
+    psmisc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Node.js from builder (simpler to just install in final but builder shows multi-stage intent)

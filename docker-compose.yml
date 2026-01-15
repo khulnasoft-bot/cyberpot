@@ -23,6 +23,7 @@ networks:
   wordpot_local:
   nginx_local:
   ewsposter_local:
+  galah_local:
 
 
 services:
