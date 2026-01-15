@@ -1,0 +1,135 @@
+# Prometheus Alert Rules for CyberPot
+
+groups:
+  - name: cyberpot_resource_alerts
+    interval: 30s
+    rules:
+      # High memory usage alert
+      - alert: HighMemoryUsage
+        expr: cyberpot_memory_heap_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High memory usage detected"
+          description: "Backend memory usage is {{ $value }}% (threshold: 90%)"
+
+      # Critical memory usage
+      - alert: CriticalMemoryUsage
+        expr: cyberpot_memory_heap_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Backend memory usage is {{ $value }}% (threshold: 95%)"
+
+      # High event error rate
+      - alert: HighEventErrorRate
+        expr: rate(cyberpot_events_errors_total[5m]) / rate(cyberpot_events_processed_total[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High event processing error rate"
+          description: "Event error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+  - name: system_resource_alerts
+    interval: 30s
+    rules:
+      # High system memory
+      - alert: HighSystemMemory
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High system memory usage"
+          description: "System memory usage is {{ $value }}% (threshold: 90%)"
+
+      # Low disk space
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/data"} / node_filesystem_size_bytes{mountpoint="/data"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "Low disk space on /data"
+          description: "Only {{ $value }}% disk space remaining (threshold: 15%)"
+
+      # Critical disk space
+      - alert: CriticalDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/data"} / node_filesystem_size_bytes{mountpoint="/data"}) * 100 < 10
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical disk space on /data"
+          description: "Only {{ $value }}% disk space remaining (threshold: 10%)"
+
+      # High I/O wait
+      - alert: HighIOWait
+        expr: rate(node_cpu_seconds_total{mode="iowait"}[5m]) * 100 > 50
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High I/O wait time"
+          description: "I/O wait is {{ $value }}% (threshold: 50%)"
+
+  - name: elasticsearch_alerts
+    interval: 30s
+    rules:
+      # Elasticsearch cluster health
+      - alert: ElasticsearchClusterNotHealthy
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          component: elasticsearch
+        annotations:
+          summary: "Elasticsearch cluster is RED"
+          description: "Elasticsearch cluster health is RED"
+
+      # Elasticsearch heap usage
+      - alert: ElasticsearchHighHeapUsage
+        expr: elasticsearch_jvm_memory_used_bytes{area="heap"} / elasticsearch_jvm_memory_max_bytes{area="heap"} * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: elasticsearch
+        annotations:
+          summary: "Elasticsearch high heap usage"
+          description: "Elasticsearch heap usage is {{ $value }}% (threshold: 90%)"
+
+  - name: container_alerts
+    interval: 30s
+    rules:
+      # Container restarts
+      - alert: ContainerRestarting
+        expr: rate(container_last_seen{name=~"elasticsearch|logstash|kibana"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: docker
+        annotations:
+          summary: "Container {{ $labels.name }} is restarting"
+          description: "Container {{ $labels.name }} has restarted"
+
+      # Container high CPU
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name=~"elasticsearch|logstash"}[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: docker
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value }}%"

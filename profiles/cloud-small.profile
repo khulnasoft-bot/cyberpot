@@ -1,0 +1,38 @@
+# CyberPot Resource Profile: Cloud Small Instance
+# Optimized for cloud micro/small instances (2-4 vCPU, 4-8GB RAM)
+
+# Resource Mode
+CYBERPOT_RESOURCE_MODE=STANDARD
+
+# Memory Configuration
+CYBERPOT_ES_HEAP_SIZE=-Xms1024m -Xmx1024m
+CYBERPOT_LS_HEAP_SIZE=-Xms512m -Xmx512m
+CYBERPOT_ES_MEM_LIMIT=2g
+CYBERPOT_KIBANA_MEM_LIMIT=768m
+CYBERPOT_LS_MEM_LIMIT=1g
+
+# Disk Configuration
+CYBERPOT_LOG_RETENTION_DAYS=14
+CYBERPOT_LOG_MAX_SIZE_MB=75
+
+# Performance Configuration
+CYBERPOT_MAP_UPDATE_INTERVAL=3000
+CYBERPOT_CACHE_TTL=120
+CYBERPOT_BATCH_SIZE=75
+
+# Monitoring
+CYBERPOT_MONITORING_ENABLED=true
+
+# Elasticsearch Configuration
+CYBERPOT_ES_SHARDS=1
+CYBERPOT_ES_REPLICAS=0
+
+# Logstash Configuration
+CYBERPOT_LS_WORKERS=2
+CYBERPOT_LS_BATCH_SIZE=150
+
+# Profile Metadata
+PROFILE_NAME="Cloud Small"
+PROFILE_DESCRIPTION="Optimized for cloud small instances (AWS t3.medium, GCP n1-standard-2)"
+PROFILE_MIN_RAM_GB=4
+PROFILE_MIN_DISK_GB=100

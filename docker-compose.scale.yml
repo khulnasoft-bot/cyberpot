@@ -1,0 +1,73 @@
+version: '3.8'
+
+networks:
+  scaling:
+    driver: bridge
+
+volumes:
+  redis_data:
+
+
+services:
+  # HAProxy Load Balancer
+  haproxy:
+    image: haproxy:2.9-alpine
+    container_name: cyberpot_haproxy
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "8404:8404" # Stats page
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./docker/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - scaling
+    depends_on:
+      - backend
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8404/stats" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend (scalable)
+  backend:
+    build: ./src/backend
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - CYBERPOT_RESOURCE_MODE=${CYBERPOT_RESOURCE_MODE:-STANDARD}
+      - CYBERPOT_MONITORING_ENABLED=${CYBERPOT_MONITORING_ENABLED:-true}
+    networks:
+      - scaling
+    depends_on:
+      - redis
+    # No ports exposed - accessed through HAProxy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  # Redis (shared state)
+  redis:
+    image: redis:7.2-alpine
+    container_name: cyberpot_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis_data:/data
+    networks:
+      - scaling
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3

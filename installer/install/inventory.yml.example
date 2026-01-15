@@ -1,0 +1,50 @@
+# CyberPot Ansible Inventory Example
+# Copy this file to inventory.yml and customize with your host details
+# WARNING: Never commit inventory.yml to version control!
+
+cyberpot:
+  hosts:
+    # Example: Single host deployment
+    # Replace with your actual host IP/hostname and credentials
+    your-host-ip-or-hostname:
+      ansible_port: 22                    # SSH port (default: 22)
+      ansible_user: your-username         # SSH user with sudo access
+      # ansible_ssh_private_key_file: ~/.ssh/id_rsa  # Optional: specify SSH key
+      
+    # Example: Multiple hosts (hive + sensors)
+    # Uncomment and customize as needed
+    
+    # hive-server:
+    #   ansible_host: 192.168.1.100
+    #   ansible_port: 22
+    #   ansible_user: admin
+    
+    # sensor-1:
+    #   ansible_host: 192.168.1.101
+    #   ansible_port: 22
+    #   ansible_user: sensor
+    
+    # sensor-2:
+    #   ansible_host: 192.168.1.102
+    #   ansible_port: 22
+    #   ansible_user: sensor
+
+# Additional inventory options:
+# 
+# Use hostname aliases:
+#   my-server:
+#     ansible_host: 192.168.1.50
+#     ansible_port: 2222
+#     ansible_user: admin
+#
+# Use password authentication (not recommended):
+#   my-server:
+#     ansible_host: 192.168.1.50
+#     ansible_user: admin
+#     ansible_ssh_pass: "{{ vault_password }}"  # Use ansible-vault for passwords
+#
+# Connection options:
+#   my-server:
+#     ansible_connection: ssh
+#     ansible_python_interpreter: /usr/bin/python3
+#     ansible_become_method: sudo

@@ -1,55 +1,58 @@
-FROM alpine:3.20 AS builder
-#
-# Include dist
-COPY dist/ /root/dist/
-#
+# Build stage
+FROM alpine:3.20.3 AS builder
+
+LABEL maintainer="CyberPot Team"
+LABEL description="Elasticpot Builder"
+
 # Install packages
 RUN apk --no-cache -U upgrade && \
 	apk --no-cache -U add \
-		build-base \
-		ca-certificates \
-		git \
-		libffi-dev \
-		openssl \
-		openssl-dev \
-		postgresql-dev \
-		py3-cryptography \
-		py3-elasticsearch \
-		py3-geoip2 \
-		py3-maxminddb \
-		py3-mysqlclient \
-		py3-packaging \
-		py3-psycopg2 \
-		py3-redis \
-		py3-requests \
-		py3-service_identity \
-		py3-setuptools \
-		py3-pip \
-		py3-twisted \
-		py3-wheel \
-		python3 \
-		python3-dev && \
-    mkdir -p /opt && \
-    cd /opt/ && \
-    git clone https://gitlab.com/bontchev/elasticpot.git/ && \
-	cd elasticpot && \
-	git checkout d12649730d819bd78ea622361b6c65120173ad45 && \
-    cp /root/dist/requirements.txt .
+	build-base \
+	ca-certificates \
+	git \
+	libffi-dev \
+	openssl-dev \
+	postgresql-dev \
+	py3-pip \
+	python3 \
+	python3-dev
+
+COPY dist/ /root/dist/
+
+WORKDIR /opt
+RUN git clone https://gitlab.com/bontchev/elasticpot.git/ /opt/elasticpot && \
+	cd /opt/elasticpot && \
+	git checkout d12649730d819bd78ea622361b6c65120173ad45
+
 WORKDIR /opt/elasticpot
-RUN pip3 install --break-system-packages pyinstaller
-RUN pip3 install --break-system-packages -r requirements.txt
-RUN pyinstaller elasticpot.py \
-		--hidden-import output_plugins \
-		--hidden-import output_plugins.jsonlog
-#
-FROM alpine:3.20
-RUN apk --no-cache -U upgrade
-COPY --from=builder /opt/elasticpot/dist/ /opt/
+RUN cp /root/dist/requirements.txt . && \
+	pip3 install --break-system-packages pyinstaller && \
+	pip3 install --break-system-packages -r requirements.txt && \
+	pyinstaller elasticpot.py \
+	--hidden-import output_plugins \
+	--hidden-import output_plugins.jsonlog
+
+# Runtime stage
+FROM alpine:3.20.3
+
+LABEL maintainer="CyberPot Team"
+LABEL description="Elasticpot Honeypot"
+
+RUN apk --no-cache -U upgrade && \
+	apk --no-cache add python3
+
+COPY --from=builder /opt/elasticpot/dist/elasticpot /opt/elasticpot/elasticpot
 COPY --from=builder /opt/elasticpot/responses/ /opt/elasticpot/responses/
-COPY --from=builder /root/dist/honeypot.cfg /opt/elasticpot/etc/
-#
+COPY dist/honeypot.cfg /opt/elasticpot/etc/honeypot.cfg
+
+WORKDIR /opt/elasticpot
+USER 2000:2000
+
 # Start elasticpot
 STOPSIGNAL SIGINT
-USER 2000:2000
-WORKDIR /opt/elasticpot/
-CMD ["./elasticpot"]
+
+# Healthcheck
+HEALTHCHECK --interval=1m --timeout=10s --retries=3 \
+	CMD nc -z localhost 9200 || exit 1
+
+ENTRYPOINT ["./elasticpot"]

@@ -1,0 +1,15 @@
+# Ansible inventory files (contain sensitive host information)
+inventory.yml
+
+# Ansible retry files
+*.retry
+
+# Backup files created during deployment
+*.backup
+
+# Ansible vault password files
+.vault_pass
+vault_pass.txt
+
+# Local test files
+test_*.yml

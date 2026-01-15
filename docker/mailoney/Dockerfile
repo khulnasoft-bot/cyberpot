@@ -1,30 +1,37 @@
-# For Mailoney to work we need to keep Alpine 3.19 for now
+# Build and Runtime stage
 FROM alpine:3.19
-#
+
+LABEL maintainer="CyberPot Team"
+LABEL description="Mailoney Honeypot"
+
 # Install packages
 RUN apk --no-cache -U upgrade && \
     apk --no-cache -U add \
-		git \
-		libcap \
-		python3 && \
-#
+    git \
+    libcap \
+    python3
+
 # Install mailoney from git
-    git clone https://github.com/t3chn0m4g3/mailoney /opt/mailoney && \
-    cd /opt/mailoney && \
-    git checkout 06e54bd410e0044d26d8462321f1b2811318db0b && \
-#
+WORKDIR /opt/mailoney
+RUN git clone https://github.com/t3chn0m4g3/mailoney . && \
+    git checkout 06e54bd410e0044d26d8462321f1b2811318db0b
+
 # Setup user, groups and configs
-    addgroup -g 2000 mailoney && \
-    adduser -S -H -s /bin/ash -u 2000 -D -g 2000 mailoney && \
+RUN addgroup -g 2000 mailoney && \
+    adduser -S -H -u 2000 -D -g 2000 mailoney && \
     chown -R mailoney:mailoney /opt/mailoney && \
     setcap cap_net_bind_service=+ep $(readlink -f $(type -P python3)) && \
-#
-# Clean up
-    apk del --purge git && \
-    rm -rf /root/* /var/cache/apk/* /opt/mailoney/.git
-#
-# Set workdir and start mailoney
+    # Clean up
+    rm -rf /root/* /var/cache/apk/* .git
+
+# Start mailoney
 STOPSIGNAL SIGINT
 USER mailoney:mailoney
 WORKDIR /opt/mailoney/
-CMD ["/usr/bin/python","mailoney.py","-i","0.0.0.0","-p","25","-t","schizo_open_relay"]
+
+# Healthcheck
+HEALTHCHECK --interval=1m --timeout=10s --retries=3 \
+    CMD nc -z localhost 25 || exit 1
+
+ENTRYPOINT ["python3", "mailoney.py"]
+CMD ["-i", "0.0.0.0", "-p", "25", "-t", "schizo_open_relay"]

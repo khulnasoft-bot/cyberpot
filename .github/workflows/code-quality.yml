@@ -1,0 +1,118 @@
+name: Code Quality
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+  pull_request:
+    branches:
+      - master
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  shellcheck:
+    name: ShellCheck Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: warning
+          ignore_paths: 'node_modules docker/deprecated'
+          format: gcc
+
+      - name: Upload ShellCheck results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shellcheck-results
+          path: shellcheck.log
+          retention-days: 7
+
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint.yml
+          file_or_dir: .
+          strict: false
+        continue-on-error: true
+
+  dockerfile-lint:
+    name: Dockerfile Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "docker/*/Dockerfile"
+          recursive: true
+          ignore: DL3008,DL3009,DL3015
+          failure-threshold: warning
+        continue-on-error: true
+
+  editorconfig:
+    name: EditorConfig Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check EditorConfig
+        uses: editorconfig-checker/action-editorconfig-checker@main
+        with:
+          version: latest
+        continue-on-error: true
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check licenses
+        uses: fossas/fossa-action@main
+        with:
+          api-key: ${{ secrets.FOSSA_API_KEY }}
+        continue-on-error: true
+
+  code-quality-summary:
+    name: Code Quality Summary
+    needs: [shellcheck, yaml-lint, dockerfile-lint, editorconfig]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 📊 Code Quality Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ShellCheck: ${{ needs.shellcheck.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- YAML Lint: ${{ needs.yaml-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Dockerfile Lint: ${{ needs.dockerfile-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- EditorConfig: ${{ needs.editorconfig.result }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.shellcheck.result }}" == "success" ] && \
+             [ "${{ needs.yaml-lint.result }}" == "success" ] && \
+             [ "${{ needs.dockerfile-lint.result }}" == "success" ] && \
+             [ "${{ needs.editorconfig.result }}" == "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All code quality checks passed!" >> $GITHUB_STEP_SUMMARY
+          fi

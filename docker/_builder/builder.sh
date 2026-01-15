@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 
 # Got root?
-myWHOAMI=$(whoami)
-if [ "$myWHOAMI" != "root" ]
-  then
+if [[ $EUID -ne 0 ]]; then
     echo "Need to run as root ..."
-    exit
+    exit 1
 fi
 
 # ANSI color codes for green (OK) and red (FAIL)
@@ -17,7 +15,7 @@ NC='\033[0m' # No Color
 PUSH_IMAGES=false
 NO_CACHE=false
 PARALLELBUILDS=2
-UPLOAD_BANDWIDTH=40mbit # Set this to max 90% of available upload bandwidth
+UPLOAD_BANDWIDTH="40mbit" # Set this to max 90% of available upload bandwidth
 INTERFACE=$(/sbin/ip address show | /usr/bin/awk '/inet.*brd/{ print $NF; exit }')
 
 # Help message
@@ -31,7 +29,7 @@ usage() {
 
 # Parse command-line options
 while getopts ":pnh" opt; do
-    case ${opt} in
+    case "${opt}" in
         p )
             PUSH_IMAGES=true
             docker login
@@ -53,7 +51,7 @@ done
 # Function to apply upload bandwidth limit using tc
 apply_bandwidth_limit() {
     echo -n "Applying upload bandwidth limit of $UPLOAD_BANDWIDTH on interface $INTERFACE..."
-    if tc qdisc add dev $INTERFACE root tbf rate $UPLOAD_BANDWIDTH burst 32kbit latency 400ms >/dev/null 2>&1; then
+    if tc qdisc add dev "$INTERFACE" root tbf rate "$UPLOAD_BANDWIDTH" burst 32kbit latency 400ms >/dev/null 2>&1; then
         echo -e " [${GREEN}OK${NC}]"
     else
         echo -e " [${RED}FAIL${NC}]"
@@ -61,7 +59,7 @@ apply_bandwidth_limit() {
 
         # Try to reapply the limit
         echo -n "Reapplying upload bandwidth limit of $UPLOAD_BANDWIDTH on interface $INTERFACE..."
-        if tc qdisc add dev $INTERFACE root tbf rate $UPLOAD_BANDWIDTH burst 32kbit latency 400ms >/dev/null 2>&1; then
+        if tc qdisc add dev "$INTERFACE" root tbf rate "$UPLOAD_BANDWIDTH" burst 32kbit latency 400ms >/dev/null 2>&1; then
             echo -e " [${GREEN}OK${NC}]"
         else
             echo -e " [${RED}FAIL${NC}]"
@@ -74,14 +72,14 @@ apply_bandwidth_limit() {
 
 # Function to check if the bandwidth limit is set
 is_bandwidth_limit_set() {
-    tc qdisc show dev $INTERFACE | grep -q 'tbf'
+    tc qdisc show dev "$INTERFACE" | grep -q 'tbf'
 }
 
 # Function to remove the bandwidth limit using tc if it is set
 remove_bandwidth_limit() {
     if is_bandwidth_limit_set; then
         echo -n "Removing upload bandwidth limit on interface $INTERFACE..."
-        if tc qdisc del dev $INTERFACE root; then
+        if tc qdisc del dev "$INTERFACE" root; then
             echo -e " [${GREEN}OK${NC}]"
         else
             echo -e " [${RED}FAIL${NC}]"
@@ -114,7 +112,7 @@ fi
 echo -n "Ensuring 'mybuilder' supports linux/arm64 and linux/amd64..."
 
 # Get active platforms from buildx
-active_platforms=$(docker buildx inspect mybuilder --bootstrap | grep -oP '(?<=Platforms: ).*')
+active_platforms=$(docker buildx inspect mybuilder --bootstrap | grep -o 'Platforms: .*')
 
 if [[ "$active_platforms" == *"linux/arm64"* && "$active_platforms" == *"linux/amd64"* ]]; then
     echo -e " [${GREEN}OK${NC}]"
@@ -139,7 +137,7 @@ else
 fi
 
 # Apply bandwidth limit only if pushing images
-if $PUSH_IMAGES; then
+if [ "$PUSH_IMAGES" = true ]; then
     echo
     echo "########################################"
     echo "# Setting Upload Bandwidth limit ..."
@@ -168,25 +166,25 @@ mkdir -p log
 services=$(docker compose config --services | sort)
 
 # Loop through each service to build
-echo $services | tr ' ' '\n' | xargs -I {} -P $PARALLELBUILDS bash -c '
-    echo "Building image: {}" && \
-    build_cmd="docker compose build {}" && \
-    if '$PUSH_IMAGES'; then \
-        build_cmd="$build_cmd --push"; \
+echo "$services" | tr ' ' '\n' | xargs -I {} -P "$PARALLELBUILDS" bash -c "
+    echo 'Building image: {}' && \
+    build_cmd='docker compose build {}' && \
+    if [ \"$PUSH_IMAGES\" = true ]; then \
+        build_cmd=\"\$build_cmd --push\"; \
     fi && \
-    if '$NO_CACHE'; then \
-        build_cmd="$build_cmd --no-cache"; \
+    if [ \"$NO_CACHE\" = true ]; then \
+        build_cmd=\"\$build_cmd --no-cache\"; \
     fi && \
-    eval "$build_cmd > log/{}.log 2>&1" && \
-    echo -e "Image {}: ['$GREEN'OK'$NC']" || \
-    echo -e "Image {}: ['$RED'FAIL'$NC']"
-'
+    eval \"\$build_cmd > log/{}.log 2>&1\" && \
+    echo -e \"Image {}: [${GREEN}OK${NC}]\" || \
+    echo -e \"Image {}: [${RED}FAIL${NC}]\"
+"
 
 # Remove bandwidth limit if it was applied
 if is_bandwidth_limit_set; then
     echo
     echo "########################################"
-    echo "# Removiong Upload Bandwidth limit ..."
+    echo "# Removing Upload Bandwidth limit ..."
     echo "########################################"
     echo
     remove_bandwidth_limit
@@ -195,8 +193,8 @@ fi
 echo
 echo "#######################################################"
 echo "# Done."
-if ! "$PUSH_IMAGES"; then
-  echo "# Remeber to push the images using push option."
+if [ "$PUSH_IMAGES" = false ]; then
+  echo "# Remember to push the images using push option."
 fi
 echo "#######################################################"
 echo

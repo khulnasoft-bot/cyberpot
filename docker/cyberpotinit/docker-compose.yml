@@ -1,6 +1,6 @@
 services:
 
-# CyberPot Init Service
+  # CyberPot Init Service
   cyberpotinit:
     build: .
     container_name: cyberpotinit
@@ -14,4 +14,8 @@ services:
       - $HOME/cyberpot/data:/data
     network_mode: "host"
     cap_add:
-     - NET_ADMIN
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "cyberpot=true"

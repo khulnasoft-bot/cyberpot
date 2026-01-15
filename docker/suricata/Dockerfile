@@ -1,20 +1,22 @@
-FROM alpine:edge
-#
-# Include dist
+# Build and Runtime stage
+FROM alpine:3.20.3
+
+LABEL maintainer="CyberPot Team"
+LABEL description="Suricata IDS/NSM"
+
 COPY dist/ /root/dist/
-#
+
 # Install packages
 RUN apk --no-cache -U upgrade && \
-    apk --no-cache -U add \
-		ca-certificates \
-		curl \
-		file \
-		hiredis \
-		libcap \
-		wget \
-		suricata && \
-#
-# Setup user, groups and configs
+    apk --no-cache add \
+    ca-certificates \
+    curl \
+    file \
+    hiredis \
+    libcap \
+    wget \
+    suricata && \
+    # Setup user and app
     addgroup -g 2000 suri && \
     adduser -S -H -u 2000 -D -g 2000 suri && \
     cp /root/dist/*.yaml /etc/suricata/ && \
@@ -25,16 +27,18 @@ RUN apk --no-cache -U upgrade && \
     chmod 755 -R /var/lib/suricata && \
     chmod 755 /usr/bin/update.sh && \
     chown -R root:suri /tmp /run && \
-#
-# Download the latest EmergingThreats OPEN ruleset
+    # Initial rule update
     suricata-update update-sources && \
     suricata-update --no-test --no-reload && \
-#
-# Clean up
-    rm -rf /root/* \
-           /tmp/* \
-           /var/cache/apk/*
-#
+    # Clean up
+    rm -rf /root/* /tmp/* /var/cache/apk/*
+
 # Start suricata
 STOPSIGNAL SIGINT
-CMD SURICATA_CAPTURE_FILTER=$(update.sh $OINKCODE) && exec suricata -v -F $SURICATA_CAPTURE_FILTER -i $(/sbin/ip address show | /usr/bin/awk '/inet.*brd/{ print $NF; exit }')
+
+# Healthcheck
+HEALTHCHECK --interval=1m --timeout=10s --retries=3 \
+    CMD pgrep suricata || exit 1
+
+WORKDIR /etc/suricata
+ENTRYPOINT ["/bin/bash", "-c", "SURICATA_CAPTURE_FILTER=$(/usr/bin/update.sh $OINKCODE) && exec suricata -v -F $SURICATA_CAPTURE_FILTER -i eth0"]

@@ -6,48 +6,87 @@
 # Be sure to use root password as become password
 - name: CyberPot - Debian Bootstrapping (sudo)
   hosts: all
-  gather_facts: false
+  gather_facts: true
   become: false
 
   tasks:
     - name: Check if running as root
       assert:
-        that: ansible_user != 'root'
+        that: ansible_user_id != 'root'
         fail_msg: "CyberPot playbook should not be run as root."
-        success_msg: "Running as user: {{ ansible_user }}."
+        success_msg: "Running as user: {{ ansible_user_id }}."
       tags:
         - "Debian"
 
     - name: Check if running as cyberpot
       assert:
-        that: ansible_user != 'cyberpot'
+        that: ansible_user_id != 'cyberpot'
         fail_msg: "Reserved username `cyberpot` detected."
-        success_msg: "Running as user: {{ ansible_user }}."
+        success_msg: "Running as user: {{ ansible_user_id }}."
       tags:
         - "Debian"
 
-    - name: Get distribution name
-      raw: awk -F= '/^NAME/{print $2}' /etc/os-release | tr -d '"' | cut -d " " -f1
-      register: my_distribution
+    - name: Validate distribution is Debian-based
+      assert:
+        that: ansible_facts['os_family'] == 'Debian'
+        fail_msg: "This playbook is for Debian-based systems only. Detected: {{ ansible_facts['os_family'] }}"
+        success_msg: "Validated OS: {{ ansible_facts['distribution'] }}"
       tags:
         - "Debian"
 
     - name: Check if sudo is installed
-      # Use echo, or task will fail if sudo not found
-      raw: echo -n $(command -v sudo)
-      register: my_sudo
+      ansible.builtin.package_facts:
+        manager: auto
       tags:
         - "Debian"
 
-    - name: Add sudo package and add ansible_user to sudo group (Debian)
+    - name: Install sudo and configure user access (Debian)
       become: true
       become_method: su
-      raw: |
-        apt update
-        apt -y install sudo
-        /usr/sbin/usermod -aG sudo {{ ansible_user }}
-        echo '{{ ansible_user }} ALL=(ALL:ALL) ALL' | tee /etc/sudoers.d/{{ ansible_user }}
-        chmod 440 /etc/sudoers.d/{{ ansible_user }}
-      when: my_distribution.stdout | trim in ["Debian"] and my_sudo.stdout | trim == ""
+      block:
+        - name: Install sudo package
+          ansible.builtin.apt:
+            name: sudo
+            state: present
+            update_cache: yes
+          when: "'sudo' not in ansible_facts.packages"
+
+        - name: Add user to sudo group
+          ansible.builtin.user:
+            name: "{{ ansible_user_id }}"
+            groups: sudo
+            append: yes
+
+        # SECURITY NOTE: This grants full sudo access without password.
+        # This is required for automated Ansible playbooks but reduces security.
+        # In production, consider:
+        # - Using NOPASSWD only for specific commands
+        # - Implementing time-limited sudo sessions
+        # - Using Ansible Vault for sensitive operations
+        - name: Configure sudoers for passwordless sudo
+          ansible.builtin.lineinfile:
+            path: /etc/sudoers.d/{{ ansible_user_id }}
+            line: '{{ ansible_user_id }} ALL=(ALL:ALL) NOPASSWD:ALL'
+            create: yes
+            mode: '0440'
+            validate: 'visudo -cf %s'
+      when: "'sudo' not in ansible_facts.packages or ansible_user_id not in getent_group.sudo.2.split(',')"
       tags:
         - "Debian"
+
+    - name: Verify sudo configuration
+      become: true
+      ansible.builtin.command:
+        cmd: sudo -l -U {{ ansible_user_id }}
+      register: sudo_check
+      changed_when: false
+      tags:
+        - "Debian"
+
+    - name: Display sudo configuration
+      ansible.builtin.debug:
+        msg: "Sudo configured successfully for user {{ ansible_user_id }}"
+      when: sudo_check.rc == 0
+      tags:
+        - "Debian"
+

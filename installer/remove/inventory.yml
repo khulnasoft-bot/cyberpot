@@ -5,4 +5,4 @@ cyberpot:
       # Remote SSH port:
       ansible_port: 22
       # Remote SSH user:
-      ansible_user: tsec
+      ansible_user: cpot

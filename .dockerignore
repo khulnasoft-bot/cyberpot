@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+.github
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+dist
+build
+out
+
+# Environment variables
+.env
+*.env
+
+# IDEs
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Data
+data/
+logs/
+downloads/
+payloads/
+rtp/
+roots/
+binaries/
+cert/
+config/
+configurations/log/
+!configurations/beelzebub.yaml
+!configurations/services/

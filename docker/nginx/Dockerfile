@@ -1,40 +1,46 @@
-FROM alpine:3.23
-#
-# Include dist
+# Build stage
+FROM alpine:3.20.3 AS builder
+
+LABEL maintainer="CyberPot Team"
+LABEL description="Nginx Static Assets Preparer"
+
 COPY dist/ /root/dist/
-#
-# Install packages
-RUN apk --no-cache -U upgrade && \
-    apk --no-cache -U add \
-      nginx \
-      nginx-mod-http-brotli \
-      nginx-mod-http-headers-more \
-      nginx-mod-http-lua && \ 
-#
-## Setup CyberPot Landing Page, Eleasticvue, Cyberchef 
-    cp -R /root/dist/html/* /var/lib/nginx/html/ && \
-    cd /var/lib/nginx/html/esvue && \
+
+WORKDIR /var/lib/nginx/html
+RUN mkdir -p esvue cyberchef && \
+    cp -R /root/dist/html/* ./ && \
+    cd esvue && \
     tar xvfz esvue.tgz && \
     rm esvue.tgz && \
-    cd /var/lib/nginx/html/cyberchef && \
+    cd ../cyberchef && \
     tar xvfz cyberchef.tgz && \
-    rm cyberchef.tgz && \
-#
-## Change ownership, permissions
-    chown root:www-data -R /var/lib/nginx/html && \
+    rm cyberchef.tgz
+
+# Runtime stage
+FROM alpine:3.20.3
+
+LABEL maintainer="CyberPot Team"
+LABEL description="CyberPot Management Nginx"
+
+# Install packages
+RUN apk --no-cache -U upgrade && \
+    apk --no-cache add \
+    nginx \
+    nginx-mod-http-brotli \
+    nginx-mod-http-headers-more \
+    nginx-mod-http-lua
+
+# Copy assets and configs
+COPY --from=builder /var/lib/nginx/html /var/lib/nginx/html
+COPY dist/conf/nginx.conf /etc/nginx/nginx.conf
+COPY dist/conf/ssl /etc/nginx/ssl
+COPY dist/conf/cyberpotweb.conf /etc/nginx/conf.d/cyberpotweb.conf
+COPY dist/conf/lsweb.conf /etc/nginx/conf.d/lsweb.conf
+
+RUN chown root:www-data -R /var/lib/nginx/html && \
     chmod 755 -R /var/lib/nginx/html && \
-#
-## Add Nginx / CyberPot specific configs
-    rm -rf /etc/nginx/conf.d/* /usr/share/nginx/html/* && \
-    mkdir -p /etc/nginx/conf.d && \
-    cp /root/dist/conf/nginx.conf /etc/nginx/ && \
-    cp -R /root/dist/conf/ssl /etc/nginx/ && \
-    cp /root/dist/conf/cyberpotweb.conf /etc/nginx/conf.d/ && \
-    cp /root/dist/conf/lsweb.conf /etc/nginx/conf.d/ && \
-#
-# Clean up
-    rm -rf /root/* \
-           /var/cache/apk/*
-#
+    mkdir -p /run/nginx
+
 # Start nginx
+STOPSIGNAL SIGTERM
 CMD ["nginx", "-g", "daemon off;"]

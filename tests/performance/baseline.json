@@ -1,0 +1,67 @@
+{
+    "version": "1.0.0",
+    "baseline_date": "2026-01-15",
+    "environment": "standard",
+    "metrics": {
+        "http_req_duration": {
+            "p50": 150,
+            "p95": 400,
+            "p99": 800,
+            "avg": 200,
+            "max": 1000
+        },
+        "http_req_failed": {
+            "rate": 0.005
+        },
+        "http_reqs": {
+            "rate": 100
+        },
+        "vus": {
+            "max": 100
+        },
+        "api_latency": {
+            "p50": 100,
+            "p95": 350,
+            "p99": 750
+        },
+        "errors": {
+            "rate": 0.01
+        }
+    },
+    "endpoints": {
+        "/health": {
+            "p95": 50,
+            "p99": 100
+        },
+        "/api/sensors": {
+            "p95": 200,
+            "p99": 400
+        },
+        "/api/geodata": {
+            "p95": 300,
+            "p99": 600
+        },
+        "/api/containers": {
+            "p95": 400,
+            "p99": 800
+        },
+        "/api/analyze": {
+            "p95": 500,
+            "p99": 1000
+        }
+    },
+    "resource_modes": {
+        "LOW": {
+            "http_req_duration_p95": 600,
+            "max_rps": 50
+        },
+        "STANDARD": {
+            "http_req_duration_p95": 400,
+            "max_rps": 100
+        },
+        "HIGH": {
+            "http_req_duration_p95": 250,
+            "max_rps": 200
+        }
+    }
+}

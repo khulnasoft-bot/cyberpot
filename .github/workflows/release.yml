@@ -1,0 +1,192 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v24.04.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog from $PREV_TAG to ${{ steps.get_version.outputs.version }}"
+            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Save changelog to file
+          echo "$CHANGELOG" > CHANGELOG.txt
+          
+          # Also check if CHANGELOG.md exists and extract relevant section
+          if [ -f "CHANGELOG.md" ]; then
+            echo "" >> CHANGELOG.txt
+            echo "## Full Changelog" >> CHANGELOG.txt
+            cat CHANGELOG.md >> CHANGELOG.txt
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          release_name: CyberPot ${{ steps.get_version.outputs.version }}
+          body_path: CHANGELOG.txt
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'rc') }}
+
+  build-and-publish-images:
+    name: Build and Publish Release Images
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push all images
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          VERSION_CLEAN="${VERSION#v}"  # Remove 'v' prefix
+          
+          echo "Building and pushing images with version: $VERSION_CLEAN"
+          
+          # Use the docker-build.sh script with version tag
+          chmod +x docker-build.sh
+          ./docker-build.sh -v "$VERSION_CLEAN"
+          
+          echo "✅ All images built and pushed successfully!"
+
+  create-installer-package:
+    name: Create Installer Package
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create installer archive
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          
+          # Create a clean installer package
+          mkdir -p cyberpot-installer
+          
+          # Copy essential files
+          cp install.sh cyberpot-installer/
+          cp uninstall.sh cyberpot-installer/
+          cp update.sh cyberpot-installer/
+          cp deploy.sh cyberpot-installer/
+          cp genuser.sh cyberpot-installer/
+          cp docker-compose.yml cyberpot-installer/
+          cp env.example cyberpot-installer/
+          cp README.md cyberpot-installer/
+          cp LICENSE cyberpot-installer/
+          cp version cyberpot-installer/
+          
+          # Copy compose files
+          cp -r compose cyberpot-installer/
+          
+          # Create archive
+          tar -czf cyberpot-${VERSION}-installer.tar.gz cyberpot-installer/
+          
+          # Create checksums
+          sha256sum cyberpot-${VERSION}-installer.tar.gz > cyberpot-${VERSION}-installer.tar.gz.sha256
+
+      - name: Upload installer package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./cyberpot-${{ needs.create-release.outputs.version }}-installer.tar.gz
+          asset_name: cyberpot-${{ needs.create-release.outputs.version }}-installer.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./cyberpot-${{ needs.create-release.outputs.version }}-installer.tar.gz.sha256
+          asset_name: cyberpot-${{ needs.create-release.outputs.version }}-installer.tar.gz.sha256
+          asset_content_type: text/plain
+
+  notify:
+    name: Notify Release
+    needs: [create-release, build-and-publish-images, create-installer-package]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Release summary
+        run: |
+          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Create Release: ${{ needs.create-release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build Images: ${{ needs.build-and-publish-images.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Create Installer: ${{ needs.create-installer-package.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.create-release.result }}" == "success" ] && \
+             [ "${{ needs.build-and-publish-images.result }}" == "success" ] && \
+             [ "${{ needs.create-installer-package.result }}" == "success" ]; then
+            echo "✅ **Release completed successfully!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Release failed. Please check the logs.**" >> $GITHUB_STEP_SUMMARY
+          fi

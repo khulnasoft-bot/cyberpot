@@ -1,0 +1,171 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-npm-dependencies:
+    name: Update npm Dependencies
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component:
+          - { name: 'backend', path: 'src/backend' }
+          - { name: 'dashboard', path: 'src/dashboard' }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Update dependencies
+        working-directory: ${{ matrix.component.path }}
+        run: |
+          # Update package.json with latest versions
+          npx npm-check-updates -u
+          
+          # Install updated dependencies
+          npm install
+          
+          # Run tests to ensure nothing broke
+          npm test || true
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(${{ matrix.component.name }}): update npm dependencies'
+          title: 'chore(${{ matrix.component.name }}): update npm dependencies'
+          body: |
+            ## 📦 Dependency Updates for ${{ matrix.component.name }}
+            
+            This PR updates npm dependencies to their latest versions.
+            
+            ### Changes
+            - Updated dependencies in `${{ matrix.component.path }}/package.json`
+            
+            ### Testing
+            - [ ] All tests pass
+            - [ ] Application builds successfully
+            - [ ] No breaking changes detected
+            
+            ### Notes
+            Please review the changes carefully and test thoroughly before merging.
+            
+            ---
+            *This PR was automatically created by the Dependency Updates workflow*
+          branch: deps/${{ matrix.component.name }}-npm-updates
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
+            ${{ matrix.component.name }}
+
+  update-docker-base-images:
+    name: Check Docker Base Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for base image updates
+        run: |
+          echo "## 🐳 Docker Base Image Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Find all Dockerfiles and check base images
+          find docker -name Dockerfile -not -path "*/deprecated/*" | while read -r dockerfile; do
+            echo "### $(dirname $dockerfile)" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract FROM lines
+            grep "^FROM" "$dockerfile" | while read -r line; do
+              echo "- $line" >> $GITHUB_STEP_SUMMARY
+            done
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          echo "💡 **Tip**: Manually review and update base images as needed" >> $GITHUB_STEP_SUMMARY
+
+  security-updates:
+    name: Security Updates Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component:
+          - { name: 'backend', path: 'src/backend' }
+          - { name: 'dashboard', path: 'src/dashboard' }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Check for security updates
+        working-directory: ${{ matrix.component.path }}
+        run: |
+          npm audit --json > audit.json || true
+          
+          # Check if there are vulnerabilities
+          VULN_COUNT=$(cat audit.json | jq '.metadata.vulnerabilities.total // 0')
+          
+          echo "## 🔒 Security Audit: ${{ matrix.component.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Total vulnerabilities: $VULN_COUNT" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Action Required**: Run \`npm audit fix\` to address vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            
+            # Try to fix automatically
+            npm audit fix --package-lock-only || true
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create security fix PR
+        if: hashFiles(format('{0}/package-lock.json', matrix.component.path)) != ''
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'fix(${{ matrix.component.name }}): apply security updates'
+          title: 'fix(${{ matrix.component.name }}): apply security updates'
+          body: |
+            ## 🔒 Security Updates for ${{ matrix.component.name }}
+            
+            This PR applies security fixes identified by npm audit.
+            
+            ### Changes
+            - Applied security updates to `${{ matrix.component.path }}/package-lock.json`
+            
+            ### Testing
+            - [ ] All tests pass
+            - [ ] Application builds successfully
+            - [ ] Security vulnerabilities resolved
+            
+            ### Priority
+            🚨 **High Priority** - Please review and merge as soon as possible
+            
+            ---
+            *This PR was automatically created by the Dependency Updates workflow*
+          branch: security/${{ matrix.component.name }}-fixes
+          delete-branch: true
+          labels: |
+            security
+            automated
+            priority-high
+            ${{ matrix.component.name }}

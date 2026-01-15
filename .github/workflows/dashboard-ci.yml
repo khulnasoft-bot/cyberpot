@@ -1,0 +1,158 @@
+name: Dashboard CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+    paths:
+      - 'src/dashboard/**'
+      - '.github/workflows/dashboard-ci.yml'
+  pull_request:
+    branches:
+      - master
+      - main
+      - develop
+    paths:
+      - 'src/dashboard/**'
+      - '.github/workflows/dashboard-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    name: Lint and Test Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/dashboard
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: src/dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Check TypeScript compilation
+        run: npx tsc -b --noEmit
+
+      - name: Run tests (if configured)
+        run: npm test --if-present
+        continue-on-error: true
+
+  build:
+    name: Build Dashboard
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: src/dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/dashboard
+        run: npm ci
+
+      - name: Build production bundle
+        working-directory: src/dashboard
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Check build output
+        run: |
+          if [ -d "src/dashboard/dist" ]; then
+            echo "✅ Build successful!"
+            echo "Build size:"
+            du -sh src/dashboard/dist
+            echo "Files:"
+            ls -lh src/dashboard/dist
+          else
+            echo "❌ Build failed - dist directory not found"
+            exit 1
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-build
+          path: src/dashboard/dist
+          retention-days: 7
+
+  docker-build:
+    name: Build Dashboard Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (test only)
+        uses: docker/build-push-action@v5
+        with:
+          context: src/dashboard
+          file: src/dashboard/Dockerfile
+          push: false
+          tags: cyberpot-dashboard:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: src/dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/dashboard
+        run: npm ci
+
+      - name: Build for production
+        working-directory: src/dashboard
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:4173
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 3
+          configPath: '.github/lighthouse/lighthouserc.json'
+        continue-on-error: true

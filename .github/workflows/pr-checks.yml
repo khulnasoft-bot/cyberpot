@@ -1,0 +1,180 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+      - develop
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  pr-metadata:
+    name: PR Metadata Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            doesn't start with an uppercase character.
+
+  file-changes:
+    name: Analyze File Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      docker: ${{ steps.filter.outputs.docker }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'src/backend/**'
+            dashboard:
+              - 'src/dashboard/**'
+            docker:
+              - 'docker/**'
+              - 'docker-compose.yml'
+              - 'docker-build.sh'
+            docs:
+              - '**.md'
+              - 'doc/**'
+
+  backend-check:
+    name: Backend PR Check
+    needs: file-changes
+    if: needs.file-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+
+  dashboard-check:
+    name: Dashboard PR Check
+    needs: file-changes
+    if: needs.file-changes.outputs.dashboard == 'true'
+    uses: ./.github/workflows/dashboard-ci.yml
+
+  docker-check:
+    name: Docker Build Check
+    needs: file-changes
+    if: needs.file-changes.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker compose config > /dev/null
+          echo "✅ docker-compose.yml is valid"
+
+      - name: Test docker-build.sh
+        run: |
+          chmod +x docker-build.sh
+          ./docker-build.sh --help
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: warning
+          ignore_paths: 'node_modules docker/deprecated'
+
+  markdown-lint:
+    name: Markdown Lint
+    needs: file-changes
+    if: needs.file-changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint Markdown files
+        uses: articulate/actions-markdownlint@v1
+        with:
+          config: .markdownlint.json
+          files: '**/*.md'
+          ignore: node_modules
+        continue-on-error: true
+
+  size-label:
+    name: PR Size Labeling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label PR by size
+        uses: codelytv/pr-size-labeler@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          xs_label: 'size/xs'
+          xs_max_size: '10'
+          s_label: 'size/s'
+          s_max_size: '100'
+          m_label: 'size/m'
+          m_max_size: '500'
+          l_label: 'size/l'
+          l_max_size: '1000'
+          xl_label: 'size/xl'
+          fail_if_xl: 'false'
+          message_if_xl: >
+            This PR is very large. Consider breaking it into smaller PRs for easier review.
+          files_to_ignore: 'package-lock.json pnpm-lock.yaml yarn.lock'
+
+  pr-summary:
+    name: PR Check Summary
+    needs: [pr-metadata, file-changes, shellcheck, size-label]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate PR summary
+        run: |
+          echo "## 🔍 Pull Request Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changed Components" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: ${{ needs.file-changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: ${{ needs.file-changes.outputs.dashboard == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker: ${{ needs.file-changes.outputs.docker == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Documentation: ${{ needs.file-changes.outputs.docs == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "- PR Metadata: ${{ needs.pr-metadata.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ShellCheck: ${{ needs.shellcheck.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Size Labeling: ${{ needs.size-label.result }}" >> $GITHUB_STEP_SUMMARY

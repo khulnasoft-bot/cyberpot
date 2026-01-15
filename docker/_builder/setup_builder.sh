@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# ANSI color codes for green (OK) and red (FAIL)
+# ANSI color codes for blue, green, and red (OK, FAIL)
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Check if the user is in the docker group
-if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
+if ! groups "$(whoami)" | grep -q '\bdocker\b'; then
     echo -e "${RED}You need to be in the docker group to run this script without root privileges.${NC}"
     echo "Please run the following command to add yourself to the docker group:"
     echo "  sudo usermod -aG docker $(whoami)"
@@ -16,7 +16,7 @@ if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
 fi
 
 # Command-line switch check
-if [ "$1" != "-y" ]; then
+if [[ "$1" != "-y" ]]; then
     echo "### Setting up Docker for Multi-Arch Builds."
     echo "### Requires Docker packages from https://get.docker.com/"
     echo "### Use on x64 only!"
@@ -51,7 +51,7 @@ fi
 
 # Ensure arm64 and amd64 platforms are active
 echo -n "Ensuring 'mybuilder' supports linux/arm64 and linux/amd64..."
-active_platforms=$(docker buildx inspect mybuilder --bootstrap | grep -oP '(?<=Platforms: ).*')
+active_platforms=$(docker buildx inspect mybuilder --bootstrap | grep -o 'Platforms: .*')
 
 if [[ "$active_platforms" == *"linux/arm64"* && "$active_platforms" == *"linux/amd64"* ]]; then
     echo -e " [${GREEN}OK${NC}]"

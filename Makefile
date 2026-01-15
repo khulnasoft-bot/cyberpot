@@ -41,3 +41,16 @@ clean: down
 iso-build:
 	@echo "Building ISO image..."
 	./iso-build/build.sh
+
+dashboard-ui:
+	@echo "Starting Dashboard UI..."
+	cd src/dashboard && npm run dev
+
+dashboard-api:
+	@echo "Starting Dashboard API..."
+	cd src/backend && npm start
+
+dashboard-all:
+	@echo "Starting full Dashboard development environment..."
+	# This requires multiple terminals or background processes
+	(cd src/backend && npm start) & (cd src/dashboard && npm run dev)

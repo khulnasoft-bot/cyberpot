@@ -3,10 +3,14 @@
 myINSTALL_NOTIFICATION="### Now installing required packages ..."
 myUSER=$(whoami)
 myCYBERPOT_CONF_FILE=".env"
-myPACKAGES_DEBIAN="ansible apache2-utils cracklib-runtime wget"
-myPACKAGES_FEDORA="ansible cracklib httpd-tools wget"
-myPACKAGES_ROCKY="ansible-core ansible-collection-redhat-rhel_mgmt epel-release cracklib httpd-tools wget"
-myPACKAGES_OPENSUSE="ansible apache2-utils cracklib wget"
+
+# Source package definitions
+if [ -f "installer/lib/packages.sh" ]; then
+    source installer/lib/packages.sh
+else
+    echo "Error: installer/lib/packages.sh not found."
+    exit 1
+fi
 
 
 myINSTALLER=$(cat << "EOF"
@@ -28,14 +32,11 @@ if [ ${EUID} -eq 0 ];
 fi
 
 # Check if running on a supported distribution
-mySUPPORTED_DISTRIBUTIONS=("AlmaLinux" "Debian GNU/Linux" "Fedora Linux" "openSUSE Tumbleweed" "Raspbian GNU/Linux" "Rocky Linux" "Ubuntu")
-myCURRENT_DISTRIBUTION=$(awk -F= '/^NAME/{print $2}' /etc/os-release | tr -d '"')
-
-if [[ ! " ${mySUPPORTED_DISTRIBUTIONS[@]} " =~ " ${myCURRENT_DISTRIBUTION} " ]];
-  then
-    echo "### Only the following distributions are supported: AlmaLinux, Fedora, Debian, openSUSE Tumbleweed, Rocky Linux and Ubuntu."
-    echo "### Please follow the CyberPot documentation on how to run CyberPot on macOS, Windows and other currently unsupported platforms."
-    echo
+if [ -f "installer/lib/distros.sh" ]; then
+    source installer/lib/distros.sh
+    check_distribution
+else
+    echo "Error: installer/lib/distros.sh not found."
     exit 1
 fi
 
