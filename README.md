@@ -138,7 +138,7 @@ CyberPot offers docker images for the following honeypots ...
 - [Elastic Stack](https://www.elastic.co/videos) to beautifully visualize all the events captured by CyberPot.
 - [Elasticvue](https://github.com/cars10/elasticvue/) a web front end for browsing and interacting with an Elasticsearch cluster.
 - [Fatt](https://github.com/0x4D31/fatt) a pyshark based script for extracting network metadata and fingerprints from pcap files and live network traffic.
-- [CyberPot-Attack-Map](https://github.com/khulnasoft-lab/cyberpot-attack-map) a beautifully animated attack map for CyberPot.
+- [CyberPot-Attack-Map](https://github.com/khulnasoft/cyberpot-attack-map) a beautifully animated attack map for CyberPot.
 - [P0f](https://lcamtuf.coredump.cx/p0f3/) is a tool for purely passive traffic fingerprinting.
 - [Spiderfoot](https://github.com/smicallef/spiderfoot) an open source intelligence automation tool.
 - [Suricata](https://suricata.io/) a Network Security Monitoring engine.

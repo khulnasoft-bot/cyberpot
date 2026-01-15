@@ -120,7 +120,7 @@ RUN ARCH=$(arch) && \
 # Start dionaea
 STOPSIGNAL SIGINT
 #
-# Dionaea sometimes hangs at 100% CPU usage, if detected container will become unhealthy and restarted by tpotinit
+# Dionaea sometimes hangs at 100% CPU usage, if detected container will become unhealthy and restarted by cyberpotinit
 HEALTHCHECK --interval=5m --timeout=30s --retries=3 CMD python3 /cpu_check.py $(pgrep -of dionaea) 99
 USER dionaea:dionaea
 CMD ["/opt/dionaea/sbin/dionaea", "-u", "dionaea", "-g", "dionaea", "-c", "/opt/dionaea/etc/dionaea/dionaea.cfg"]

@@ -1,0 +1,13 @@
+[Unit]
+Description=CyberPot First Boot Installer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/root/cyberpot-first-boot.sh
+RemainAfterExit=true
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

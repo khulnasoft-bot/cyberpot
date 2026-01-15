@@ -29,7 +29,7 @@ CyberPot 24.04.1 brings significant updates and exciting new honeypot additions,
 - The container no longer runs in host mode, requiring changes to the `docker-compose.yml` and related services.  
 - To avoid confusion and downtime, the `24.04.1` tag for Docker images has been introduced.  
 - **Important**: Actively update CyberPot as described in the [README](https://github.com/khulnasoft/cyberpot/blob/master/README.md).  
-- **Deprecation Notice**: The `24.04` tagged images will no longer be maintained and will be removed by **2025-01-31**.  
+- **Deprecation Notice**: The `24.04.1` tagged images will no longer be maintained and will be removed by **2025-01-31**.  
 
 ### Suricata  
 - Capture filters have been updated to exclude broadcast, multicast, NetBIOS, IGMP, and MDNS traffic.  

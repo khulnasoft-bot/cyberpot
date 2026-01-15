@@ -2,7 +2,7 @@
 
 myINSTALL_NOTIFICATION="### Now installing required packages ..."
 myUSER=$(whoami)
-myCYBERPOT_CONF_FILE="/home/${myUSER}/cyberpot/.env"
+myCYBERPOT_CONF_FILE=".env"
 myPACKAGES_DEBIAN="ansible apache2-utils cracklib-runtime wget"
 myPACKAGES_FEDORA="ansible cracklib httpd-tools wget"
 myPACKAGES_ROCKY="ansible-core ansible-collection-redhat-rhel_mgmt epel-release cracklib httpd-tools wget"
@@ -190,14 +190,14 @@ while true; do
       echo
       echo "### Installing CyberPot Standard / HIVE."
       myCYBERPOT_TYPE="HIVE"
-      cp ${HOME}/cyberpot/compose/standard.yml ${HOME}/cyberpot/docker-compose.yml
+      cp compose/standard.yml docker-compose.yml
       myINFO=""
       break ;;
     s|S)
       echo
       echo "### Installing CyberPot Sensor."
       myCYBERPOT_TYPE="SENSOR"
-      cp ${HOME}/cyberpot/compose/sensor.yml ${HOME}/cyberpot/docker-compose.yml
+      cp compose/sensor.yml docker-compose.yml
       myINFO="### Make sure to deploy SSH keys to this SENSOR and disable SSH password authentication.
 ### On HIVE run the cyberpot/deploy.sh script to join this SENSOR to the HIVE."
       break ;;
@@ -205,28 +205,28 @@ while true; do
       echo
       echo "### Installing CyberPot LLM."
       myCYBERPOT_TYPE="HIVE"
-      cp ${HOME}/cyberpot/compose/llm.yml ${HOME}/cyberpot/docker-compose.yml
+      cp compose/llm.yml docker-compose.yml
       myINFO="Make sure to adjust the CyberPot config file (.env) for Ollama / ChatGPT settings."
       break ;;
     i|I)
       echo
       echo "### Installing CyberPot Mini."
       myCYBERPOT_TYPE="HIVE"
-      cp ${HOME}/cyberpot/compose/mini.yml ${HOME}/cyberpot/docker-compose.yml
+      cp compose/mini.yml docker-compose.yml
       myINFO=""
       break ;;
     m|M)
       echo
       echo "### Installing CyberPot Mobile."
       myCYBERPOT_TYPE="MOBILE"
-      cp ${HOME}/cyberpot/compose/mobile.yml ${HOME}/cyberpot/docker-compose.yml
+      cp compose/mobile.yml docker-compose.yml
       myINFO=""
       break ;;
     t|T)
       echo
       echo "### Installing CyberPot Tarpit."
       myCYBERPOT_TYPE="HIVE"
-      cp ${HOME}/cyberpot/compose/tarpit.yml ${HOME}/cyberpot/docker-compose.yml
+      cp compose/tarpit.yml docker-compose.yml
       myINFO=""
       break ;;
   esac
@@ -308,7 +308,7 @@ fi
 
 # Pull docker images
 echo "### Now pulling images ..."
-sudo docker compose -f /home/${myUSER}/cyberpot/docker-compose.yml pull
+sudo docker compose -f docker-compose.yml pull
 echo
 
 # Show running services

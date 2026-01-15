@@ -366,7 +366,8 @@ services:
      - honeyaml_local
     ports:
       - "3000:8080"
-    image: ${CYBERPOT_REPO}/honeyaml:${CYBERPOT_VERSION}
+    build:
+      context: ./docker/honeyaml
     pull_policy: ${CYBERPOT_PULL_POLICY}
     read_only: true
     volumes:
@@ -706,7 +707,7 @@ services:
     mem_limit: 1g
     ports:
      - "127.0.0.1:64296:5601"
-    image: ${CYBERPOT_REPO}/kibana:${CYBERPOT_VERSION}
+    image: khulnasoft/kibana:24.04.1
     pull_policy: ${CYBERPOT_PULL_POLICY}
 
 ## Logstash service

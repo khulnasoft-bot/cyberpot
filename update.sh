@@ -167,8 +167,8 @@ function fuUPDATER () {
 	fuPULLIMAGES
 	fuREMOVEOLDIMAGES "khulnasoft/*:dev"
 	fuREMOVEOLDIMAGES "ghcr.io/khulnasoft/*:dev"
-	fuREMOVEOLDIMAGES "khulnasoft/*:24.04"
-	fuREMOVEOLDIMAGES "ghcr.io/khulnasoft/*:24.04"
+	fuREMOVEOLDIMAGES "khulnasoft/*:24.04.1"
+	fuREMOVEOLDIMAGES "ghcr.io/khulnasoft/*:24.04.1"
 	echo
 	echo "### If you made changes to docker-compose.yml please ensure to add them again."
 	echo "### We stored the previous version as backup in $myARCHIVE."
