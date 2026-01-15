@@ -1,20 +1,21 @@
 networks:
   honeyaml_local:
 
+
 services:
 
-# Honeyaml service
+  # Honeyaml service
   honeyaml:
     build: .
     container_name: honeyaml
     restart: always
-#    cpu_count: 1
-#    cpus: 0.25
+    #    cpu_count: 1
+    #    cpus: 0.25
     networks:
-     - honeyaml_local
+      - honeyaml_local
     ports:
       - "8080:8080"
-    image: khulnasoft/honeyaml:24.04
+    image: ghcr.io/khulnasoft-bot/honeyaml:24.04
     read_only: true
     volumes:
-     - $HOME/cyberpot/data/honeyaml/log/:/opt/honeyaml/log/
+      - $HOME/cyberpot/data/honeyaml/log/:/opt/honeyaml/log/

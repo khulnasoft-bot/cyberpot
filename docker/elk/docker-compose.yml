@@ -22,7 +22,7 @@ services:
     mem_limit: 4g
     ports:
       - "127.0.0.1:64298:9200"
-    image: "ghcr.io/khulnasoft/elasticsearch:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/elasticsearch:24.04.1"
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 1m
@@ -40,7 +40,7 @@ services:
     mem_limit: 1g
     ports:
       - "127.0.0.1:64296:5601"
-    image: "ghcr.io/khulnasoft/kibana:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/kibana:24.04.1"
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 1m
@@ -55,7 +55,7 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
-    image: "ghcr.io/khulnasoft/logstash:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/logstash:24.04.1"
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 1m
@@ -69,7 +69,7 @@ services:
     restart: always
     ports:
       - "127.0.0.1:6379:6379"
-    image: "ghcr.io/khulnasoft/redis:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/redis:24.04.1"
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -83,7 +83,7 @@ services:
       - MAP_COMMAND=AttackMapServer.py
     ports:
       - "127.0.0.1:64299:64299"
-    image: "ghcr.io/khulnasoft/map:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/map:24.04.1"
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 10s
@@ -96,7 +96,7 @@ services:
     restart: always
     environment:
       - MAP_COMMAND=DataServer_v2.py
-    image: "ghcr.io/khulnasoft/map:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/map:24.04.1"
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 10s

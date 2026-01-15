@@ -8,7 +8,7 @@ services:
       - $HOME/cyberpot/.env
     restart: "no"
     stop_grace_period: 60s
-    image: "ghcr.io/khulnasoft/cyberpotinit:24.04.1"
+    image: "ghcr.io/khulnasoft-bot/cyberpotinit:24.04.1"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - $HOME/cyberpot/data:/data

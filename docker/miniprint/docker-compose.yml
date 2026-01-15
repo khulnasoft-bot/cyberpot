@@ -1,21 +1,22 @@
 networks:
   miniprint_local:
 
+
 services:
 
-# Miniprint service
+  # Miniprint service
   miniprint:
     build: .
     container_name: miniprint
     restart: always
-#    cpu_count: 1
-#    cpus: 0.25
+    #    cpu_count: 1
+    #    cpus: 0.25
     networks:
-     - miniprint_local
+      - miniprint_local
     ports:
       - "9100:9100"
-    image: khulnasoft/miniprint:24.04
+    image: ghcr.io/khulnasoft-bot/miniprint:24.04
     read_only: true
     volumes:
-     - $HOME/cyberpot/data/miniprint/log/:/opt/miniprint/log/
-     - $HOME/cyberpot/data/miniprint/uploads/:/opt/miniprint/uploads/
+      - $HOME/cyberpot/data/miniprint/log/:/opt/miniprint/log/
+      - $HOME/cyberpot/data/miniprint/uploads/:/opt/miniprint/uploads/

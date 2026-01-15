@@ -1,20 +1,21 @@
 networks:
   medpot_local:
 
+
 services:
 
-# medpot service
+  # medpot service
   medpot:
     build: .
     container_name: medpot
     restart: always
-#    cpu_count: 1
-#    cpus: 0.25
+    #    cpu_count: 1
+    #    cpus: 0.25
     networks:
-     - medpot_local
+      - medpot_local
     ports:
-     - "2575:2575"
-    image: "ghcr.io/khulnasoft/medpot:24.04.1"
+      - "2575:2575"
+    image: "ghcr.io/khulnasoft-bot/medpot:24.04.1"
     read_only: true
     volumes:
-     - $HOME/cyberpot/data/medpot/log/:/var/log/medpot
+      - $HOME/cyberpot/data/medpot/log/:/var/log/medpot

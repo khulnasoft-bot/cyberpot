@@ -15,7 +15,7 @@ usage() {
 }
 
 VERSION_TAG_ARG=""
-PREFIX="ghcr.io/khulnasoft"  # default prefix as in your example
+PREFIX="ghcr.io/khulnasoft-bot"  # default prefix as in your example
 
 # Manual argument parsing
 while [[ $# -gt 0 ]]; do

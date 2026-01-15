@@ -3,7 +3,7 @@
 
 # Variables
 VERSION   ?= $(shell cat version 2>/dev/null || echo "latest")
-PREFIX    ?= ghcr.io/khulnasoft
+PREFIX    ?= ghcr.io/khulnasoft-bot
 PLATFORMS ?= linux/amd64,linux/arm64
 REGISTRY  ?= ghcr.io
 

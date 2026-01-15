@@ -4,7 +4,7 @@ FROM ubuntu:24.04 AS builder
 LABEL maintainer="CyberPot Team"
 LABEL description="Dionaea Builder"
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install packages
 RUN apt-get update -y && \
@@ -28,6 +28,7 @@ RUN apt-get update -y && \
     libudns-dev \
     python3 \
     python3-dev \
+    python3-setuptools \
     wget && \
     ARCH=$(arch) && \
     if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi && \
@@ -52,7 +53,7 @@ FROM ubuntu:24.04
 LABEL maintainer="CyberPot Team"
 LABEL description="Dionaea Honeypot"
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \

@@ -41,7 +41,7 @@ The CyberPot CI/CD pipeline is built using GitHub Actions and provides comprehen
 
 **Environment Variables:**
 - `REGISTRY`: ghcr.io
-- `IMAGE_PREFIX`: ghcr.io/khulnasoft
+- `IMAGE_PREFIX`: ghcr.io/khulnasoft-bot
 
 ### 2. Backend CI (`backend-ci.yml`)
 
