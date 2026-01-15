@@ -5,7 +5,7 @@ export TERM=linux
 
 # Let's define some global vars
 myBACKTITLE="CyberPot - macOS VM Creator"
-myPACKAGES="quickemu qemu-system-x86 unzip wget dialog"
+myPACKAGES="quickemu qemu-system-x86 unzip wget dialog jq"
 myTMP="tmp_macos"
 myCONF_FILE="macos_vm.conf"
 
@@ -55,5 +55,28 @@ rm -rf $myTMP $myCONF_FILE
 }
 trap fuCLEANUP EXIT
 
-echo "Setup for macOS VM creation is ready."
-echo "Next steps: list macOS versions and let the user choose."
+
+# Get macOS versions
+myMACOS_VERSIONS=$(quickget --list-json | jq -r '.[] | select(.OS=="macos") | .Release')
+
+# Create a menu for the user to choose a macOS version
+myMENU_OPTIONS=()
+for version in $myMACOS_VERSIONS; do
+    myMENU_OPTIONS+=("$version" "")
+done
+
+mySELECTED_VERSION=$(dialog --backtitle "$myBACKTITLE" --title "[ macOS Version ]" --menu "Please choose a macOS version to install." 15 60 4 "${myMENU_OPTIONS[@]}" 3>&1 1>&2 2>&3 3>&-)
+
+if [ "$mySELECTED_VERSION" == "" ];
+  then
+    exit
+fi
+
+# Download the selected macOS version
+quickget macos "$mySELECTED_VERSION"
+
+# Create the VM
+quickemu --vm macos-"$mySELECTED_VERSION".conf
+
+# Instructions for the user
+dialog --backtitle "$myBACKTITLE" --title "[ Installation ]" --msgbox "The macOS VM is now running. Please follow the on-screen instructions to complete the installation. This may take a while." 10 60
